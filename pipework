@@ -187,9 +187,11 @@ ln -s /proc/$NSPID/ns/net /var/run/netns/$NSPID
     # They are inserted into position 1, so read from bottom up ;-)
     iptables -I FORWARD 1 -i $IFNAME   -o $IFNAME -j ACCEPT
     iptables -I FORWARD 1 -i $IFNAME ! -o $IFNAME -j ACCEPT
-    # this is not necessary for internal communication, therefore disabled
-    # iptables -I FORWARD 1 -o $IFNAME -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    iptables -t nat -A POSTROUTING -i $IFNAME ! -o $IFNAME -j MASQUERADE 
+
+    HOST_IFNAME=$(ip route show | awk '/^default/{ for(i=0; i < NF; i++) if ($(i+1)=="dev") print $(i+2) }')
+    iptables -t nat -A POSTROUTING -o $HOST_IFNAME -j MASQUERADE
+    iptables -A FORWARD -i $IFNAME -o $HOST_IFNAME -m state --state RELATED,ESTABLISHED -j ACCEPT
+    iptables -A FORWARD -i $IFNAME -o $HOST_IFNAME -j ACCEPT
 }
 
 MTU=$(ip link show $IFNAME | awk '{print $5}')
